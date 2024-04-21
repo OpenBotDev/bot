@@ -3,7 +3,7 @@ import PoolTable from './pooltable';
 import LogMessagesTable from './LogMessagesTable';
 import BotInfo from './botinfo'
 
-function Main({ poolCounter, pools, messages }) {
+function Main({ poolCounter, pools, messages, messagesBot }) {
     return (
         <div className="App">
             <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -24,7 +24,7 @@ function Main({ poolCounter, pools, messages }) {
             </nav>
 
             <div className="container mt-5">
-                <BotInfo />
+                <BotInfo messagesBot={messagesBot} />
             </div>
             <div className="container mt-5">
                 poolCounter: {poolCounter}

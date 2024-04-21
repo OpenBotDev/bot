@@ -32,7 +32,7 @@ export class PoolMonitor {
 
     private rpc_connection: Connection | null = null;
     //private coder: RaydiumAmmCoder | null = null;
-    private node_ws: WebSocket;
+    //private node_ws: WebSocket;
     private wss_server: WebSocket.Server;
 
     private counter_tx = 0;
@@ -40,6 +40,7 @@ export class PoolMonitor {
     private counter_blocks = 0;
     private last_slot = 0;
     private ws_clients;
+    //only 1 conn
     private client_connected = false;
     private last_pools: string[] = [];
 
@@ -53,7 +54,7 @@ export class PoolMonitor {
         logger.info("init wss connection " + `${wss}`);
         this.rpc_connection = new Connection(`${process.env.RPC_HOST}`, { wsEndpoint: `${process.env.WSS_HOST}` });
 
-        this.node_ws = new WebSocket(wss);
+        //this.node_ws = new WebSocket(wss);
         let wss_srv_port = 8888;
         this.wss_server = new WebSocket.Server({ port: wss_srv_port });
         this.setupWebSocketServer();

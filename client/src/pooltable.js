@@ -11,7 +11,7 @@ const PoolTable = ({ pools }) => {
     }, [pools]);  // Dependency array to trigger effect when messages change
 
     return (
-        <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
             <table className="table table-striped">
                 <thead>
                     <tr>
