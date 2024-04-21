@@ -12,10 +12,6 @@ import { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3, Token, TokenAmount }
 import WebSocket, { Server } from 'ws';
 
 import { BN } from 'bn.js';
-import {
-    SolanaParser,
-    parseTransactionAccounts,
-} from '@debridge-finance/solana-transaction-parser';
 
 export const RAYDIUM_LIQUIDITY_PROGRAM_ID_V4 = MAINNET_PROGRAM_ID.AmmV4;
 
@@ -43,36 +39,40 @@ export class PoolMonitor {
     private counter_msg = 0;
     private counter_blocks = 0;
     private last_slot = 0;
+    private ws_clients;
 
     /**
-     * Initializes a new instance of the PoolMonitor class.
-     * Private constructor to enforce singleton pattern.
+     *      
      */
     public constructor() {
         let rpc = process.env.RPC_HOST;
         let wss = process.env.WSS_HOST!;
-        logger.info("init connection " + `${rpc}`);
-        logger.info("init connection " + `${wss}`);
+        logger.info("init rpc connection " + `${rpc}`);
+        logger.info("init wss connection " + `${wss}`);
         this.rpc_connection = new Connection(`${process.env.RPC_HOST}`, { wsEndpoint: `${process.env.WSS_HOST}` });
 
         this.node_ws = new WebSocket(wss);
-        this.wss_server = new WebSocket.Server({ port: 8080 });
+        let wss_srv_port = 8888;
+        this.wss_server = new WebSocket.Server({ port: wss_srv_port });
         this.setupWebSocketServer();
 
         //this.coder = new RaydiumAmmCoder(IDL as Idl);
     }
 
     /**
-     * Initializes the PoolMonitor by subscribing to logs.
+     * 
      */
     public async init() {
-        if (!this.rpc_connection) return;
+        if (!this.rpc_connection) {
+            logger.error('rpc_connection not set');
+            return;
+        }
 
         try {
             const currentSlot = await this.rpc_connection.getSlot();
 
             logger.info('currentSlot:' + currentSlot);
-            this.setupWebSocketServer();
+
             await this.subscribeToPoolCreate();
 
         } catch (error) {
@@ -83,8 +83,10 @@ export class PoolMonitor {
     }
 
     private setupWebSocketServer() {
+        this.ws_clients = new Set();
         this.wss_server.on('connection', ws => {
             logger.info('Client connected to the server.');
+            this.ws_clients.add(ws);
             ws.on('message', message => {
                 logger.info(`Received message: ${message}`);
                 this.counter_msg++;
@@ -98,14 +100,23 @@ export class PoolMonitor {
         });
     }
 
+    private loginfo(msg) {
+        logger.info(msg);
+        this.ws_clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ 'msg': msg }));
+            }
+        });
+    }
+
     public async subscribeToPoolCreate() {
-        logger.info('subscribeToPoolCreate');
+        this.loginfo('subscribeToPoolCreate');
         if (!this.rpc_connection) {
             logger.error('no rpc_connection');
             return;
         }
 
-        logger.info('track pools');
+        this.loginfo('track pools');
 
         const reportTime = 5000;
         const currentDate = new Date();
@@ -118,8 +129,8 @@ export class PoolMonitor {
                 const t = currentDate.getTime() / 1000;
                 const delta = (t - runTimestamp);
 
-                logger.info('Seconds since start: ' + delta.toFixed(0));
-                logger.info('count_pools ' + count_pools);
+                this.loginfo('Seconds since start: ' + delta.toFixed(0));
+                this.loginfo('count_pools ' + count_pools);
             } catch (error) {
                 logger.error('Error in setInterval:', error);
             }
@@ -127,29 +138,28 @@ export class PoolMonitor {
 
         const subscriptionId = this.rpc_connection.onLogs(new PublicKey(RAY_FEE), async (rlog) => {
             try {
-                //let lastlog: string = rlog.logs[rlog.logs.length - 1];
-                logger.info('sig found ' + rlog.signature);
+                this.loginfo('sig found ' + rlog.signature);
                 count_pools++;
 
-                logger.info('get info');
+                this.loginfo('get info');
                 let tx = await this.getPoolTransaction(rlog.signature);
 
                 if (tx != null) {
-                    logger.info('pool create tx ' + tx);
+                    this.loginfo('pool create tx ' + tx);
                     let bt = tx.tx.blockTime;
-                    logger.info('tx blocktime: ' + bt);
+                    this.loginfo('tx blocktime: ' + bt);
 
-                    logger.info('tx poolAddress ' + tx.poolAddress);
+                    this.loginfo('tx poolAddress ' + tx.poolAddress);
 
                     //const key = updatedAccountInfo.accountId.toString();                
 
                     const poolInfo = await this.getPoolInfo(tx.poolAddress);
-                    logger.info('poolOpenTime: ' + poolInfo.poolOpenTime);
+                    this.loginfo('poolOpenTime: ' + poolInfo.poolOpenTime);
 
                     const currentDate = new Date();
                     const t = currentDate.getTime() / 1000;
                     const delta_seconds = (t - poolInfo.poolOpenTime);
-                    logger.info('delay to now: ' + delta_seconds.toFixed(0));
+                    this.loginfo('delay to now: ' + delta_seconds.toFixed(0));
 
                     //TODO 
                     // await rabbitMQPublisher.publish('pool', JSON.stringify({
@@ -160,7 +170,7 @@ export class PoolMonitor {
 
 
                 } else {
-                    logger.info('tx is null');
+                    this.loginfo('tx is null');
                 }
             } catch (error) {
                 logger.error('Error in onLogs callback:', error);
@@ -168,7 +178,7 @@ export class PoolMonitor {
 
         });
 
-        logger.info('subscribe. id: ' + subscriptionId);
+        this.loginfo('subscribe. id: ' + subscriptionId);
     }
 
     private async getPoolTransaction(signature: string): Promise<PoolCreationTx | null> {
@@ -179,10 +189,10 @@ export class PoolMonitor {
             });
             const accounts = tx?.transaction?.message?.accountKeys;
             if (accounts) {
-                // logger.info('pool create tx accounts > ');
-                // logger.info(accounts[0].pubkey.toBase58());
-                // logger.info(accounts[1].pubkey.toBase58());
-                // logger.info(accounts[2].pubkey.toBase58());
+                // this.loginfo('pool create tx accounts > ');
+                // this.loginfo(accounts[0].pubkey.toBase58());
+                // this.loginfo(accounts[1].pubkey.toBase58());
+                // this.loginfo(accounts[2].pubkey.toBase58());
                 return { poolAddress: accounts[2].pubkey.toBase58(), tx: tx };
             } else {
                 return null;
@@ -221,7 +231,7 @@ export class PoolMonitor {
         try {
             const info = await this.rpc_connection!.getAccountInfo(new PublicKey(address));
             if (!info) {
-                logger.info('failed to get account');
+                this.loginfo('failed to get account');
                 return null;
             }
             const result = LIQUIDITY_STATE_LAYOUT_V4.decode(info.data);
