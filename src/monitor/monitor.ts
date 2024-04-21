@@ -9,7 +9,8 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { MAINNET_PROGRAM_ID } from '@raydium-io/raydium-sdk';
 import { Idl } from "@project-serum/anchor";
 import { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3, Token, TokenAmount } from '@raydium-io/raydium-sdk';
-import WebSocket from 'ws';
+import WebSocket, { Server } from 'ws';
+
 import { BN } from 'bn.js';
 import {
     SolanaParser,
@@ -33,9 +34,11 @@ import { PoolCreationTx } from './types'
  */
 export class PoolMonitor {
 
-    private connection: Connection | null = null;
+    private rpc_connection: Connection | null = null;
     //private coder: RaydiumAmmCoder | null = null;
     private node_ws: WebSocket;
+    private wss_server: WebSocket.Server;
+
     private counter_tx = 0;
     private counter_msg = 0;
     private counter_blocks = 0;
@@ -50,9 +53,11 @@ export class PoolMonitor {
         let wss = process.env.WSS_HOST!;
         logger.info("init connection " + `${rpc}`);
         logger.info("init connection " + `${wss}`);
-        //this.connection = new Connection(`${process.env.RPC_HOST}`, { wsEndpoint: `${process.env.WSS_HOST}` });
+        this.rpc_connection = new Connection(`${process.env.RPC_HOST}`, { wsEndpoint: `${process.env.WSS_HOST}` });
 
         this.node_ws = new WebSocket(wss);
+        this.wss_server = new WebSocket.Server({ port: 8080 });
+        this.setupWebSocketServer();
 
         //this.coder = new RaydiumAmmCoder(IDL as Idl);
     }
@@ -61,14 +66,14 @@ export class PoolMonitor {
      * Initializes the PoolMonitor by subscribing to logs.
      */
     public async init() {
-        if (!this.connection) return;
+        if (!this.rpc_connection) return;
 
         try {
-            const currentSlot = await this.connection.getSlot();
+            const currentSlot = await this.rpc_connection.getSlot();
 
             logger.info('currentSlot:' + currentSlot);
-
-            //await this.subscribeToPoolCreate();
+            this.setupWebSocketServer();
+            await this.subscribeToPoolCreate();
 
         } catch (error) {
             logger.error('Failed to fetch the blockheight');
@@ -77,10 +82,26 @@ export class PoolMonitor {
 
     }
 
+    private setupWebSocketServer() {
+        this.wss_server.on('connection', ws => {
+            logger.info('Client connected to the server.');
+            ws.on('message', message => {
+                logger.info(`Received message: ${message}`);
+                this.counter_msg++;
+                // Echo the received message to all connected clients
+                //this.broadcast(`Echo: ${message}`);
+            });
+
+            ws.on('close', () => {
+                logger.info('Client disconnected.');
+            });
+        });
+    }
+
     public async subscribeToPoolCreate() {
         logger.info('subscribeToPoolCreate');
-        if (!this.connection) {
-            logger.error('no connection');
+        if (!this.rpc_connection) {
+            logger.error('no rpc_connection');
             return;
         }
 
@@ -104,7 +125,7 @@ export class PoolMonitor {
             }
         }, reportTime); // seconds
 
-        const subscriptionId = this.connection.onLogs(new PublicKey(RAY_FEE), async (rlog) => {
+        const subscriptionId = this.rpc_connection.onLogs(new PublicKey(RAY_FEE), async (rlog) => {
             try {
                 //let lastlog: string = rlog.logs[rlog.logs.length - 1];
                 logger.info('sig found ' + rlog.signature);
@@ -152,8 +173,8 @@ export class PoolMonitor {
 
     private async getPoolTransaction(signature: string): Promise<PoolCreationTx | null> {
         try {
-            if (!this.connection) return null;
-            const tx = await this.connection.getParsedTransaction(signature, {
+            if (!this.rpc_connection) return null;
+            const tx = await this.rpc_connection.getParsedTransaction(signature, {
                 maxSupportedTransactionVersion: 0,
             });
             const accounts = tx?.transaction?.message?.accountKeys;
@@ -198,7 +219,7 @@ export class PoolMonitor {
     public async getPoolInfo(address: string): Promise<any | null> {
 
         try {
-            const info = await this.connection!.getAccountInfo(new PublicKey(address));
+            const info = await this.rpc_connection!.getAccountInfo(new PublicKey(address));
             if (!info) {
                 logger.info('failed to get account');
                 return null;
