@@ -176,6 +176,7 @@ export class PoolMonitor {
                     //const key = updatedAccountInfo.accountId.toString();                
 
                     const poolInfo = await this.getPoolInfo(tx.poolAddress);
+                    poolInfo.poolAddress = tx.poolAddress;
 
                     this.loginfo('poolOpenTime: ' + poolInfo.poolOpenTime);
 

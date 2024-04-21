@@ -17,6 +17,7 @@ const PoolTable = ({ pools }) => {
                     <tr>
                         <th>#</th>
                         <th>poolOpenTime</th>
+                        <th>poolAddress</th>
                         {/* <th>lpMint</th> */}
                         {/* <th>baseVault</th> */}
                         {/* <th>marketId</th> */}
@@ -28,10 +29,11 @@ const PoolTable = ({ pools }) => {
                         <tr key={index}>
                             <td>{index + 1}</td>
                             <td>{pool.poolOpenTime}</td>
+                            <td>{pool.poolAddress}</td>
                             {/* <td>{pool.lpMint}</td> */}
                             {/* <td>{pool.baseVault}</td> */}
                             {/* <td>{pool.marketId}</td> */}
-                            <td><a href={`https://dexscreener.com/solana/${pool.lpMint}`} target="_blank" rel="noopener noreferrer">
+                            <td><a href={`https://dexscreener.com/solana/${pool.poolAddress}`} target="_blank" rel="noopener noreferrer">
                                 dexscreener
                             </a>
                             </td>

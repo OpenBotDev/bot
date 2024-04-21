@@ -23,9 +23,9 @@ function useWebSocketBot(url) {
             };
 
             websocket.onmessage = (event) => {
-                console.log('bot onmessage');
+                //console.log('bot onmessage');
                 const msgObj = JSON.parse(event.data);
-                console.log(msgObj);
+                //console.log(msgObj);
                 setMessages(prevMessages => [...prevMessages, msgObj.msg]);
             };
 
