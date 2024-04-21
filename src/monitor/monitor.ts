@@ -90,22 +90,22 @@ export class PoolMonitor {
             if (this.client_connected) {
                 logger.info('Client  already connected');
             }
-            else {
-                logger.info('Client connected to the server.');
-                this.client_connected = true;
+            //else {
+            logger.info('Client connected to the server.');
+            this.client_connected = true;
 
-                this.ws_clients.add(ws);
-                ws.on('message', message => {
-                    logger.info(`Received message: ${message}`);
-                    this.counter_msg++;
-                });
+            this.ws_clients.add(ws);
+            ws.on('message', message => {
+                logger.info(`Received message: ${message}`);
+                this.counter_msg++;
+            });
 
-                ws.send(JSON.stringify({ topic: 'lastpools', msg: this.last_pools }));
+            ws.send(JSON.stringify({ topic: 'lastpools', msg: this.last_pools }));
 
-                ws.on('close', () => {
-                    logger.info('Client disconnected.');
-                });
-            }
+            ws.on('close', () => {
+                logger.info('Client disconnected.');
+            });
+            //}
         });
     }
 
@@ -142,7 +142,7 @@ export class PoolMonitor {
                 const t = currentDate.getTime() / 1000;
                 const delta = (t - runTimestamp);
 
-                this.loginfo('Seconds since start: ' + delta.toFixed(0));
+                this.loginfo('monitor heartbeat. time since start: ' + delta.toFixed(0));
                 this.log('count_pools', '' + count_pools);
             } catch (error) {
                 logger.error('Error in setInterval:', error);

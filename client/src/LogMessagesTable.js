@@ -51,12 +51,12 @@ import React, { useEffect, useRef } from 'react';
 // };
 
 
-const MessagesTable = ({ messages }) => {
-    const bottomRef = useRef(null);  // Create a ref
+const LogMessagesTable = ({ messages }) => {
+    //const bottomRef = useRef(null);  // Create a ref
 
     useEffect(() => {
         // Scroll to the bottom ref element every time messages update
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        //bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);  // Dependency array to trigger effect when messages change
 
     return (
@@ -76,11 +76,11 @@ const MessagesTable = ({ messages }) => {
                         </tr>
                     ))}
                     {/* Invisible element at the bottom */}
-                    <tr ref={bottomRef} />
+                    {/* <tr ref={bottomRef} /> */}
                 </tbody>
             </table>
         </div>
     );
 };
 
-export default MessagesTable;
+export default LogMessagesTable;
