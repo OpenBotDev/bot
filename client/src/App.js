@@ -4,21 +4,16 @@ import LogMessagesTable from './LogMessagesTable'; // Import the MessagesTable c
 import PoolTable from './pooltable'; // Import the MessagesTable component
 //TODO
 //import connectWebSocket from './websocketService';
+import Main from './main';
 
 function App() {
   const [poolCounter, setPoolCounter] = useState(0);
   const [messages, setMessages] = useState([]);
-  const [lastpools, setLastpools] = useState([]);
-  const [messagesNewPool, setMessagesNewPool] = useState([]);
+  const [pools, setPools] = useState([]);
   const [ws, setWs] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const connectingRef = useRef(false);
-
-
-  useEffect(() => {
-    console.log("Component did mount or update.");
-  }, []);
 
   useEffect(() => {
     //connectingRef prevent connect twice
@@ -27,12 +22,11 @@ function App() {
       connectingRef.current = true;
       console.log('Starting connection...');
 
-
       const wss_srv_port = 8888;
-      const websocket = new WebSocket('ws://localhost:' + wss_srv_port);
+      let ws = new WebSocket('ws://localhost:' + wss_srv_port);
       setWs(websocket);
 
-      websocket.onopen = () => {
+      ws.onopen = () => {
         console.log('Connected to WebSocket server');
         setConnected(true);
         connectingRef.current = false;
@@ -45,11 +39,11 @@ function App() {
 
         if (msgObj.topic == 'newPool') {
           console.log('>> newpool ' + msgObj.msg);
-          setMessagesNewPool((prevMessages) => [...prevMessages, msgObj.msg]);
+          setPools((prevPools) => [...prevPools, msgObj.msg]);
         } else if (msgObj.topic == 'lastpools') {
           console.log('lastpools');
           console.log(msgObj.msg);
-          setLastpools(msgObj.msg);
+          setPools(msgObj.msg);
 
         } else if (msgObj.topic == 'log') {
           //TODO parse newpools
@@ -88,46 +82,7 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
-      <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a className="navbar-brand" href="#">Openbot</a>
-        <button className="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav">
-            <li className="nav-item active">
-              <a className="nav-link" href="#">Bot</a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">Wallet</a>
-            </li>
-          </ul>
-        </div>
-      </nav>
-
-      <div className="container mt-5">
-        poolCounter: {poolCounter}
-      </div>
-
-      <div className="flex-container" style={{ display: 'flex', justifyContent: 'space-around' }}>
-        <div className="container">
-          <header className="App-header">
-            <h1 className="mb-3">Pool</h1>
-            <PoolTable messages={lastpools} />
-          </header>
-        </div>
-
-        <div className="container">
-          <header className="App-header">
-            <h1 className="mb-3">Logs</h1>
-            <LogMessagesTable messages={messages} />
-          </header>
-        </div>
-      </div>
-    </div>
-
-
+    <Main poolCounter={poolCounter} pools={pools} messages={messages} />
   );
 }
 

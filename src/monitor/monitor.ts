@@ -122,6 +122,15 @@ export class PoolMonitor {
         });
     }
 
+    private broadcast(msg: string) {
+        logger.info(msg);
+        this.ws_clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(msg);
+            }
+        });
+    }
+
     public async subscribeToPoolCreate() {
         this.loginfo('subscribeToPoolCreate');
         if (!this.rpc_connection) {
@@ -166,7 +175,7 @@ export class PoolMonitor {
                     //const key = updatedAccountInfo.accountId.toString();                
 
                     const poolInfo = await this.getPoolInfo(tx.poolAddress);
-                    this.last_pools.push(tx.poolAddress);
+
                     this.loginfo('poolOpenTime: ' + poolInfo.poolOpenTime);
 
                     const currentDate = new Date();
@@ -174,6 +183,10 @@ export class PoolMonitor {
                     const delta_seconds = (t - poolInfo.poolOpenTime);
                     this.loginfo('delay to now: ' + delta_seconds.toFixed(0));
                     this.log('newpool', 'delay: ' + delta_seconds.toFixed(0));
+
+                    this.broadcast(JSON.stringify({ topic: 'newpool', msg: poolInfo }));
+                    //this.last_pools.push(tx.poolAddress);
+                    this.last_pools.push(poolInfo);
 
                     //TODO 
                     // await rabbitMQPublisher.publish('pool', JSON.stringify({
