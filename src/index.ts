@@ -4,8 +4,6 @@ import express from 'express';
 import { createServer } from 'http';
 import path from 'path';
 
-//const wwwPath = path.resolve(__dirname, 'www');
-
 (async () => {
   logger.info('start monitor');
   try {

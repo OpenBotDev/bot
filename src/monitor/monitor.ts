@@ -40,6 +40,8 @@ export class PoolMonitor {
     private counter_blocks = 0;
     private last_slot = 0;
     private ws_clients;
+    private client_connected = false;
+    private last_pools: string[] = [];
 
     /**
      *      
@@ -85,26 +87,37 @@ export class PoolMonitor {
     private setupWebSocketServer() {
         this.ws_clients = new Set();
         this.wss_server.on('connection', ws => {
-            logger.info('Client connected to the server.');
-            this.ws_clients.add(ws);
-            ws.on('message', message => {
-                logger.info(`Received message: ${message}`);
-                this.counter_msg++;
-                // Echo the received message to all connected clients
-                //this.broadcast(`Echo: ${message}`);
-            });
+            if (this.client_connected) {
+                logger.info('Client  already connected');
+            }
+            else {
+                logger.info('Client connected to the server.');
+                this.client_connected = true;
 
-            ws.on('close', () => {
-                logger.info('Client disconnected.');
-            });
+                this.ws_clients.add(ws);
+                ws.on('message', message => {
+                    logger.info(`Received message: ${message}`);
+                    this.counter_msg++;
+                });
+
+                ws.send(JSON.stringify({ topic: 'lastpools', msg: this.last_pools }));
+
+                ws.on('close', () => {
+                    logger.info('Client disconnected.');
+                });
+            }
         });
     }
 
     private loginfo(msg) {
+        this.log('log', msg);
+    }
+
+    private log(msgtopic: string, msg: string) {
         logger.info(msg);
         this.ws_clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ 'msg': msg }));
+                client.send(JSON.stringify({ topic: msgtopic, msg: msg }));
             }
         });
     }
@@ -130,7 +143,7 @@ export class PoolMonitor {
                 const delta = (t - runTimestamp);
 
                 this.loginfo('Seconds since start: ' + delta.toFixed(0));
-                this.loginfo('count_pools ' + count_pools);
+                this.log('count_pools', '' + count_pools);
             } catch (error) {
                 logger.error('Error in setInterval:', error);
             }
@@ -145,21 +158,22 @@ export class PoolMonitor {
                 let tx = await this.getPoolTransaction(rlog.signature);
 
                 if (tx != null) {
-                    this.loginfo('pool create tx ' + tx);
+                    this.log('newpool', 'pool create tx ' + tx);
                     let bt = tx.tx.blockTime;
                     this.loginfo('tx blocktime: ' + bt);
-
                     this.loginfo('tx poolAddress ' + tx.poolAddress);
 
                     //const key = updatedAccountInfo.accountId.toString();                
 
                     const poolInfo = await this.getPoolInfo(tx.poolAddress);
+                    this.last_pools.push(tx.poolAddress);
                     this.loginfo('poolOpenTime: ' + poolInfo.poolOpenTime);
 
                     const currentDate = new Date();
                     const t = currentDate.getTime() / 1000;
                     const delta_seconds = (t - poolInfo.poolOpenTime);
                     this.loginfo('delay to now: ' + delta_seconds.toFixed(0));
+                    this.log('newpool', 'delay: ' + delta_seconds.toFixed(0));
 
                     //TODO 
                     // await rabbitMQPublisher.publish('pool', JSON.stringify({
