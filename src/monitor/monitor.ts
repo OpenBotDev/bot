@@ -11,6 +11,9 @@ import { Idl } from "@project-serum/anchor";
 import { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3, Token, TokenAmount } from '@raydium-io/raydium-sdk';
 import WebSocket, { Server } from 'ws';
 
+import { LiquidityPoolKeysV4 } from '@raydium-io/raydium-sdk';
+
+
 import { BN } from 'bn.js';
 
 export const RAYDIUM_LIQUIDITY_PROGRAM_ID_V4 = MAINNET_PROGRAM_ID.AmmV4;
@@ -30,7 +33,7 @@ import { PoolCreationTx } from './types'
  */
 export class PoolMonitor {
 
-    private rpc_connection: Connection | null = null;
+    public rpc_connection: Connection | null = null;
     //private coder: RaydiumAmmCoder | null = null;
     //private node_ws: WebSocket;
     private wss_server: WebSocket.Server;
@@ -153,6 +156,7 @@ export class PoolMonitor {
                 const delta = (t - runTimestamp);
 
                 this.loginfo('monitor heartbeat. time since start: ' + delta.toFixed(0));
+                this.loginfo('pool found so far: ' + count_pools);
                 this.log('count_pools', '' + count_pools);
             } catch (error) {
                 logger.error('Error in setInterval:', error);
@@ -168,7 +172,7 @@ export class PoolMonitor {
                 let tx = await this.getPoolTransaction(rlog.signature);
 
                 if (tx != null) {
-                    this.log('newpool', 'pool create tx ' + tx);
+                    this.loginfo('pool create tx ' + tx);
                     let bt = tx.tx.blockTime;
                     this.loginfo('tx blocktime: ' + bt);
                     this.loginfo('tx poolAddress ' + tx.poolAddress);
@@ -176,7 +180,7 @@ export class PoolMonitor {
                     //const key = updatedAccountInfo.accountId.toString();                
 
                     const poolInfo = await this.getPoolInfo(tx.poolAddress);
-                    poolInfo.poolAddress = tx.poolAddress;
+
 
                     this.loginfo('poolOpenTime: ' + poolInfo.poolOpenTime);
 
@@ -184,7 +188,22 @@ export class PoolMonitor {
                     const t = currentDate.getTime() / 1000;
                     const delta_seconds = (t - poolInfo.poolOpenTime);
                     this.loginfo('delay to now: ' + delta_seconds.toFixed(0));
-                    this.log('newpool', 'delay: ' + delta_seconds.toFixed(0));
+                    this.loginfo('quoteVault ' + poolInfo.quoteVault);
+
+                    poolInfo.poolAddress = tx.poolAddress;
+                    poolInfo.delay = delta_seconds;
+                    this.loginfo('poolInfo ' + poolInfo);
+
+                    //const poolKeys: LiquidityPoolKeysV4 = createPoolKeys(accountId, poolState, market);
+                    if (this.rpc_connection) {
+                        //logger.info()
+                        const response = await this.rpc_connection.getTokenAccountBalance(poolInfo.quoteVault, this.rpc_connection.commitment);
+                        let quoteToken = Token.WSOL;
+                        const poolSize = new TokenAmount(quoteToken, response.value.amount, true);
+                        logger.info('poolSize ' + poolSize);
+                        this.loginfo('poolSize ' + poolSize);
+                        poolInfo.poolSize = poolSize;
+                    }
 
                     this.broadcast(JSON.stringify({ topic: 'newpool', msg: poolInfo }));
                     //this.last_pools.push(tx.poolAddress);
@@ -210,7 +229,9 @@ export class PoolMonitor {
         this.loginfo('subscribe. id: ' + subscriptionId);
     }
 
-    private async getPoolTransaction(signature: string): Promise<PoolCreationTx | null> {
+
+
+    public async getPoolTransaction(signature: string): Promise<PoolCreationTx | null> {
         try {
             if (!this.rpc_connection) return null;
             const tx = await this.rpc_connection.getParsedTransaction(signature, {

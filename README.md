@@ -2,6 +2,8 @@
 
 Sniperbot on Solana
 
+Reads new pools on raydium and buys
+
 Roadmap
 
 * improve time of buy from launch

@@ -18,6 +18,7 @@ const PoolTable = ({ pools }) => {
                         <th>#</th>
                         <th>poolOpenTime</th>
                         <th>poolAddress</th>
+                        <th>PoolSize</th>
                         {/* <th>lpMint</th> */}
                         {/* <th>baseVault</th> */}
                         {/* <th>marketId</th> */}
@@ -30,6 +31,7 @@ const PoolTable = ({ pools }) => {
                             <td>{index + 1}</td>
                             <td>{pool.poolOpenTime}</td>
                             <td>{pool.poolAddress}</td>
+                            <td>{pool.poolSize}</td>
                             {/* <td>{pool.lpMint}</td> */}
                             {/* <td>{pool.baseVault}</td> */}
                             {/* <td>{pool.marketId}</td> */}
